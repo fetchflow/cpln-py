@@ -2,6 +2,7 @@ import json
 import os
 from typing import Any, Callable, Optional
 
+import yaml
 from dotenv import load_dotenv
 from inflection import underscore
 
@@ -60,10 +61,13 @@ def kwargs_from_env(environment=None):
 
 def load_template(template_path: str) -> dict[str, Any]:
     """
-    Load a JSON template file from the specified path.
+    Load a template file from the specified path.
+
+    Supports both JSON and YAML formats. Format is detected automatically
+    based on file extension (.json, .yaml, .yml).
 
     Args:
-        template_path (str): Path to the JSON template file
+        template_path (str): Path to the template file
 
     Returns:
         dict[str, Any]: The loaded template data as a dictionary
@@ -71,9 +75,52 @@ def load_template(template_path: str) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If the template file doesn't exist
         json.JSONDecodeError: If the file contains invalid JSON
+        yaml.YAMLError: If the file contains invalid YAML
+        ValueError: If the file format is not supported
     """
+    file_ext = os.path.splitext(template_path)[1].lower()
+
     with open(template_path) as file:
-        return json.load(file)
+        if file_ext == '.json':
+            return json.load(file)
+        elif file_ext in ['.yaml', '.yml']:
+            return yaml.safe_load(file)
+        else:
+            # Try to detect format by content
+            content = file.read()
+            file.seek(0)  # Reset file pointer
+
+            # Try JSON first
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                # Try YAML
+                try:
+                    return yaml.safe_load(content)
+                except yaml.YAMLError:
+                    raise ValueError(f"Unsupported template format for file: {template_path}")
+
+
+def load_yaml_template(template_path: str, variables: Optional[dict[str, str]] = None) -> dict[str, Any]:
+    """
+    Load and process a YAML template file with variable substitution.
+
+    Args:
+        template_path (str): Path to the YAML template file
+        variables (Optional[dict[str, str]]): Variables for substitution
+
+    Returns:
+        dict[str, Any]: The processed template data
+
+    Raises:
+        TemplateNotFoundError: If the template file doesn't exist
+        TemplateParsingError: If the YAML file is invalid
+        TemplateVariableError: If required variables are missing
+    """
+    from ..templates import TemplateProcessor
+
+    processor = TemplateProcessor(variables=variables)
+    return processor.process_file(template_path)
 
 
 def get_default_workload_template(workload_type: str) -> dict[str, Any]:

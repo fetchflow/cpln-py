@@ -9,7 +9,7 @@ from ..errors import WebSocketExitCodeError
 from ..parsers.container import Container
 from ..parsers.deployment import Deployment
 from ..parsers.spec import Spec
-from ..utils import get_default_workload_template, load_template
+from ..utils import get_default_workload_template, load_template, load_yaml_template
 from .resource import Collection, Model
 
 
@@ -652,6 +652,161 @@ class WorkloadCollection(Collection):
         else:
             print(response.status_code, response.json())
             raise RuntimeError(f"API call failed with status {response.status_code}")
+
+    def create_from_template(
+        self,
+        template_path: str,
+        variables: Optional[dict[str, str]] = None,
+        gvc: Optional[str] = None,
+        config: Optional[WorkloadConfig] = None,
+    ) -> None:
+        """
+        Create a workload from a YAML template file.
+
+        Args:
+            template_path (str): Path to the YAML template file
+            variables (Optional[dict[str, str]]): Variables for template substitution
+            gvc (Optional[str]): The GVC to create the workload in. Defaults to None.
+            config (Optional[WorkloadConfig]): Alternative to gvc parameter
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If neither gvc nor config is provided
+            TemplateNotFoundError: If the template file doesn't exist
+            TemplateParsingError: If the template is invalid
+            TemplateVariableError: If required variables are missing
+            RuntimeError: If the API call fails
+
+        Example:
+            >>> variables = {
+            ...     "WORKLOAD_NAME": "my-app",
+            ...     "IMAGE_NAME_TAG": "nginx:latest",
+            ...     "GVC_NAME": "production"
+            ... }
+            >>> client.workloads.create_from_template(
+            ...     template_path="./templates/workload.yml",
+            ...     variables=variables,
+            ...     gvc="production"
+            ... )
+        """
+        if gvc is None and config is None:
+            raise ValueError("Either GVC or WorkloadConfig must be defined.")
+
+        config = WorkloadConfig(gvc=gvc) if gvc else config
+
+        # Load and process the template
+        metadata = load_yaml_template(template_path, variables)
+
+        # Validate that the template contains required fields
+        if "name" not in metadata:
+            raise ValueError("Template must contain a 'name' field")
+
+        response = self.client.api.create_workload(config, metadata)
+        if response.status_code // 100 == 2:
+            print(f"✅ Workload '{metadata['name']}' created successfully from template")
+            print(f"   Status: {response.status_code}")
+        else:
+            error_msg = f"API call failed with status {response.status_code}"
+            try:
+                error_detail = response.json()
+                print(f"❌ Template deployment failed: {error_detail}")
+                error_msg += f": {error_detail}"
+            except Exception:
+                print(f"❌ Template deployment failed: {response.text}")
+                error_msg += f": {response.text}"
+            raise RuntimeError(error_msg)
+
+    def apply_template(
+        self,
+        template_path: str,
+        variables: Optional[dict[str, str]] = None,
+        gvc: Optional[str] = None,
+        config: Optional[WorkloadConfig] = None,
+    ) -> None:
+        """
+        Apply a YAML template to create or update a workload.
+
+        This method will attempt to update an existing workload if it exists,
+        or create a new one if it doesn't exist.
+
+        Args:
+            template_path (str): Path to the YAML template file
+            variables (Optional[dict[str, str]]): Variables for template substitution
+            gvc (Optional[str]): The GVC to apply the template in. Defaults to None.
+            config (Optional[WorkloadConfig]): Alternative to gvc parameter
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If neither gvc nor config is provided
+            TemplateNotFoundError: If the template file doesn't exist
+            TemplateParsingError: If the template is invalid
+            TemplateVariableError: If required variables are missing
+            RuntimeError: If the API call fails
+
+        Example:
+            >>> variables = {
+            ...     "WORKLOAD_NAME": "my-app",
+            ...     "IMAGE_NAME_TAG": "nginx:v1.1.0",
+            ...     "GVC_NAME": "production"
+            ... }
+            >>> client.workloads.apply_template(
+            ...     template_path="./templates/workload.yml",
+            ...     variables=variables,
+            ...     gvc="production"
+            ... )
+        """
+        if gvc is None and config is None:
+            raise ValueError("Either GVC or WorkloadConfig must be defined.")
+
+        config = WorkloadConfig(gvc=gvc) if gvc else config
+
+        # Load and process the template
+        metadata = load_yaml_template(template_path, variables)
+
+        # Validate that the template contains required fields
+        if "name" not in metadata:
+            raise ValueError("Template must contain a 'name' field")
+
+        workload_name = metadata["name"]
+        workload_config = WorkloadConfig(gvc=config.gvc, workload_id=workload_name)
+
+        try:
+            # Try to get the existing workload
+            existing_workload = self.get(workload_config)
+            print(f"🔄 Updating existing workload '{workload_name}' from template")
+
+            # Update the existing workload
+            response = self.client.api.patch_workload(
+                config=workload_config,
+                data=metadata,
+            )
+
+            if response.status_code // 100 == 2:
+                print(f"✅ Workload '{workload_name}' updated successfully from template")
+                print(f"   Status: {response.status_code}")
+            else:
+                error_msg = f"API call failed with status {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    print(f"❌ Template update failed: {error_detail}")
+                    error_msg += f": {error_detail}"
+                except Exception:
+                    print(f"❌ Template update failed: {response.text}")
+                    error_msg += f": {response.text}"
+                raise RuntimeError(error_msg)
+
+        except Exception as e:
+            # If workload doesn't exist or there's an error getting it, create a new one
+            if "not found" in str(e).lower() or "404" in str(e):
+                print(f"🆕 Creating new workload '{workload_name}' from template")
+                self.create_from_template(template_path, variables, gvc, config)
+            else:
+                # Re-raise other errors
+                raise
 
     def get(self, config: WorkloadConfig):
         """

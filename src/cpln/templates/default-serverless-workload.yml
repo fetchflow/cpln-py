@@ -1,0 +1,50 @@
+name: ${WORKLOAD_NAME}
+description: ${DESCRIPTION}
+tags: {}
+gvc: ${GVC_NAME}
+spec:
+  type: serverless
+  containers:
+    - name: ${CONTAINER_NAME}
+      cpu: 50m
+      image: ${IMAGE_NAME_TAG}
+      inheritEnv: false
+      memory: 128Mi
+      ports:
+        - number: 8080
+          protocol: http
+  firewallConfig:
+    external:
+      inboundAllowCIDR: []
+      inboundBlockedCIDR: []
+      outboundAllowHostname: []
+      outboundAllowPort: []
+      outboundAllowCIDR: []
+      outboundBlockedCIDR: []
+    internal:
+      inboundAllowType: none
+      inboundAllowWorkload: []
+  defaultOptions:
+    autoscaling:
+      metric: concurrency
+      metricPercentile: p50
+      target: 100
+      maxScale: 3
+      minScale: 1
+      scaleToZeroDelay: 300
+      maxConcurrency: 1000
+    timeoutSeconds: 5
+    capacityAI: true
+    spot: false
+    debug: false
+    suspend: false
+    multiZone:
+      enabled: false
+  loadBalancer:
+    direct:
+      enabled: false
+      ports: []
+    replicaDirect: false
+  supportDynamicTags: false
+  rolloutOptions: {}
+  securityOptions: {}

@@ -1,0 +1,5 @@
+name: ${GVC_NAME}
+description: ${DESCRIPTION}
+tags:
+  environment: ${ENVIRONMENT}
+  team: ${TEAM}

@@ -11,5 +11,6 @@ Example:
 
 __version__ = "0.1.18"  # This version will be read by PDM
 from .client import CPLNClient
+from . import templates
 
-__all__ = ["CPLNClient"]
+__all__ = ["CPLNClient", "templates"]

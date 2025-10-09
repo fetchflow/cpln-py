@@ -1,0 +1,50 @@
+name: ${WORKLOAD_NAME}
+description: ${DESCRIPTION}
+tags: {}
+gvc: ${GVC_NAME}
+spec:
+  type: standard
+  containers:
+    - name: ${CONTAINER_NAME}
+      cpu: 100m
+      image: ${IMAGE_NAME_TAG}
+      inheritEnv: false
+      memory: 256Mi
+      ports:
+        - number: 8080
+          protocol: http
+  firewallConfig:
+    external:
+      inboundAllowCIDR: []
+      inboundBlockedCIDR: []
+      outboundAllowHostname: []
+      outboundAllowPort: []
+      outboundAllowCIDR: []
+      outboundBlockedCIDR: []
+    internal:
+      inboundAllowType: none
+      inboundAllowWorkload: []
+  defaultOptions:
+    autoscaling:
+      metric: cpu
+      metricPercentile: p50
+      target: 70
+      maxScale: 5
+      minScale: 1
+      scaleToZeroDelay: 300
+      maxConcurrency: 1000
+    timeoutSeconds: 30
+    capacityAI: true
+    spot: false
+    debug: false
+    suspend: false
+    multiZone:
+      enabled: true
+  loadBalancer:
+    direct:
+      enabled: false
+      ports: []
+    replicaDirect: false
+  supportDynamicTags: false
+  rolloutOptions: {}
+  securityOptions: {}

@@ -156,3 +156,21 @@ class WebSocketOperationError(WebSocketMessageError):
     """Raised when the WebSocket message indicates an operation error."""
 
     pass
+
+
+class TemplateNotFoundError(CPLNException):
+    """Raised when a template file is not found."""
+
+    pass
+
+
+class TemplateVariableError(CPLNException):
+    """Raised when there are issues with template variables."""
+
+    pass
+
+
+class TemplateParsingError(CPLNException):
+    """Raised when there are issues parsing template content."""
+
+    pass
