@@ -48,6 +48,7 @@ class Container(BaseParser):
     volumes: Optional[list[dict[str, Any]]] = None
     liveness_probe: Optional[dict[str, Any]] = None
     readiness_probe: Optional[dict[str, Any]] = None
+    lifecycle: Optional[dict[str, Any]] = None
 
     @classmethod
     @preparse

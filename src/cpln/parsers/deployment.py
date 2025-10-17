@@ -1,10 +1,13 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import requests
 
 from ..api.config import APIConfig
 from ..config import WorkloadConfig
+
+if TYPE_CHECKING:
+    from ..api.client import APIClient
 from ..errors import WebSocketExitCodeError
 from ..utils import WebSocketAPI
 from .base import BaseParser, preparse
@@ -272,8 +275,8 @@ class Link(BaseParser):
     href: str
 
 
-class APIClient(requests.Session):
-    pass
+# class APIClient(requests.Session):
+#     pass
 
 
 @dataclass
@@ -367,7 +370,7 @@ class Deployment(BaseParser):
     last_modified: str
     kind: str
     links: list[Link]
-    api_client: Optional[APIClient] = None
+    api_client: Optional["APIClient"] = None
     config: Optional[WorkloadConfig] = None
 
     def __post_init__(self):
@@ -390,7 +393,7 @@ class Deployment(BaseParser):
     def parse(
         cls,
         data: dict[str, Any],
-        api_client: APIClient,
+        api_client: "APIClient",
         config: WorkloadConfig,
     ) -> Any:
         return cls(
@@ -403,12 +406,22 @@ class Deployment(BaseParser):
             config=config,
         )
 
-    def get_remote_deployment(self) -> dict[str, Any]:
-        return self.api_client._get(
-            f"/gvc/{self.config.gvc}/workload/{self.config.workload_id}"
+    def get_remote_deployment(self, remote_api_client) -> dict[str, Any]:
+        tmp = remote_api_client._get(
+            f"gvc/{self.config.gvc}/workload/{self.config.workload_id}"
         )
+        return tmp
 
     def get_replicas(self) -> dict[str, list[WorkloadReplica]]:
+        from ..api.client import APIClient
+        
+        remote_api_client = APIClient(
+            token=self.api_client.config.token,
+            org=self.api_client.config.org,
+            base_url=self.get_remote() + '/replicas',
+        )
+
+        self.get_remote_deployment(remote_api_client)
         return {
             container_name: [
                 WorkloadReplica.parse(
@@ -420,7 +433,7 @@ class Deployment(BaseParser):
                         "api_config": self.api_client.config,
                     }
                 )
-                for replica in self.get_remote_deployment()["items"]
+                for replica in self.get_remote_deployment(remote_api_client)["items"]
             ]
             for container_name in self.get_containers()
         }

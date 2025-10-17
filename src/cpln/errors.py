@@ -149,7 +149,9 @@ class WebSocketMessageError(WebSocketError):
 class WebSocketExitCodeError(WebSocketMessageError):
     """Raised when the WebSocket message indicates a non-zero exit code."""
 
-    pass
+    def __init__(self, message: str, exit_code: int = 1):
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 class WebSocketOperationError(WebSocketMessageError):

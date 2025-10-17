@@ -25,12 +25,12 @@ class FirewallConfig(BaseParser):
     Represents firewall configuration for a workload.
 
     Attributes:
-        external (dict[str, Any]): External firewall rules
-        internal (dict[str, Any]): Internal firewall rules
+        external (Optional[dict[str, Any]]): External firewall rules
+        internal (Optional[dict[str, Any]]): Internal firewall rules
     """
 
-    external: dict[str, Any]
-    internal: dict[str, Any]
+    external: Optional[dict[str, Any]] = None
+    internal: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -111,6 +111,8 @@ class Spec(BaseParser):
     default_options: Optional[DefaultOptions] = None
     firewall_config: Optional[FirewallConfig] = None
     support_dynamic_tags: Optional[bool] = None
+    rollout_options: Optional[dict[str, Any]] = None
+    security_options: Optional[dict[str, Any]] = None
 
     @classmethod
     @preparse

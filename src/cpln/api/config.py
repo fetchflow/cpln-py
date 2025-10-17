@@ -35,7 +35,8 @@ class APIConfig:
         """
         Post-initialization hook that sets the organization URL.
         """
-        self.org_url = self.get_org_url()
+        if self.org_url is None:
+            self.org_url = self.get_org_url()
 
     def get_org_url(self) -> str:
         """

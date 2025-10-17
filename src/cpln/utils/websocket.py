@@ -115,7 +115,8 @@ class WebSocketAPI:
 
                 self._error = WebSocketExitCodeError(
                     f"{error_type if error_type else 'Error'} (exit code {exit_code}): {error_message}\n"
-                    f"Full message: {decoded_message}"
+                    f"Full message: {decoded_message}",
+                    exit_code=exit_code
                 )
 
                 return exit_code
@@ -142,6 +143,12 @@ class WebSocketAPI:
             self._error = WebSocketOperationError(f"Error processing message: {str(e)}")
 
     def _on_error(self, ws: WebSocketApp, error: str):
+        # Check if this is a normal close frame (opcode 8 with code 1000)
+        # These appear as errors but are actually normal closures
+        error_str = str(error)
+        if "opcode=8" in error_str and "\\x03\\xe8" in error_str:
+            # This is a normal close (1000), not an error
+            return
         self._error = WebSocketConnectionError(f"WebSocket error: {error}")
 
     def _on_close(self, ws: WebSocketApp, close_status_code: int, close_msg: str):
